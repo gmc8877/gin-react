@@ -11,6 +11,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
+	"github.com/satori/go.uuid"
 )
 
 func HandleLogin(c *gin.Context) {
@@ -65,9 +66,9 @@ func Cors(context *gin.Context) {
 	// 必须，设置服务器支持的所有跨域请求的方法
 	context.Header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
 	// 服务器支持的所有头信息字段，不限于浏览器在"预检"中请求的字段
-	context.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Token")
+	context.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Token, X-Requested-With")
 	// 可选，设置XMLHttpRequest的响应对象能拿到的额外字段
-	context.Header("Access-Control-Expose-Headers", "Access-Control-Allow-Headers, Token")
+	context.Header("Access-Control-Expose-Headers", "Access-Control-Allow-Headers, Token, X-Requested-With")
 	// 可选，是否允许后续请求携带认证信息Cookir，该值只能是true，不需要则不设置
 	context.Header("Access-Control-Allow-Credentials", "true")
 	// 放行所有OPTIONS方法
@@ -149,7 +150,7 @@ func HandleUserinfo(c *gin.Context) {
 
 // 返回文章分类
 func HandleChannels(c *gin.Context) {
-	res := `{"data":{"channels":[{"id":0,"name":"推荐"},{"id":1,"name":"html"},{"id":2,"name":"开发者资讯"},{"id":4,"name":"c++"},{"id":6,"name":"css"},{"id":7,"name":"数据库"},{"id":8,"name":"区块链"},{"id":9,"name":"go"},{"id":10,"name":"产品"},{"id":11,"name":"后端"},{"id":12,"name":"linux"},{"id":13,"name":"人工智能"},{"id":14,"name":"php"},{"id":15,"name":"javascript"},{"id":16,"name":"架构"},{"id":17,"name":"前端"},{"id":18,"name":"python"},{"id":19,"name":"java"},{"id":20,"name":"算法"},{"id":21,"name":"面试"},{"id":22,"name":"科技动态"},{"id":23,"name":"js"},{"id":24,"name":"设计"},{"id":25,"name":"数码产品"},{"id":26,"name":"软件测试"}]},"message":"OK"}`
+	res := `{"data":{"channels":[{"id":0,"name":"推荐"},{"id":1,"name":"html"},{"id":2,"name":"开发者资讯"},{"id":3,"name":"go"},{"id":4,"name":"c++"}]},"message":"OK"}`
 	c.String(200, res)
 }
 
@@ -171,7 +172,7 @@ func HandleArticles(c *gin.Context) {
 			Read_count:    2,
 			Status:        2,
 			Article_cover: Article_cover{
-				Type:   "3",
+				Type:   3,
 				Iamges: []string{"http://geek.itheima.net/resources/images/15.jpg"},
 			},
 		}
@@ -191,11 +192,45 @@ func HandleArticles(c *gin.Context) {
 //上传文章内容
 
 func HandleUpload(c *gin.Context){
-
+	var article Article_upload
+	c.Bind(&article)
+	channel_id := article.Channel_id
+	db := handler.DB
+	sql:= fmt.Sprintf("insert into channel_%v (uuid, status, title, type, content, images_url,like_count,read_count,comment_count, pubdate)  VALUES (?,?, ?, ?, ?,?,?,?, ?, ?)",channel_id)
+	smtp, err := db.Prepare(sql)
+	tools.CheckErr(err)
+	image_url := article.Article_cover.Iamges[0]
+	id:= image_url[:36]
+	_, err = smtp.Exec(id,2,article.Title, article.Type, article.Content,image_url,0,0,0,time.Now().Format("2006-01-02"))
+	tools.CheckErr(err)
+	c.JSON(200,gin.H{
+		"message":"OK",
+	})
 }
 
 //更新文章内容
 
 func HandleUpdate(c *gin.Context) {
 	
+}
+
+//上传图片
+func HandleImagesUpload(c *gin.Context) {
+	image_id  := c.PostForm("uuid")
+	if len(image_id)==0 {
+		u2 := uuid.NewV4()
+  	image_id = u2.String()+".jpg"
+	}
+	file, _ := c.FormFile("image")
+	
+	
+	dir := "./images/"+image_id
+	c.SaveUploadedFile(file, dir)
+	data := make(map[string]string)
+	data["url"] = "localhost:8080/"+image_id
+	data["uuid"] = image_id
+	c.JSON(200, gin.H{
+		"data":data,
+		"message":"OK",
+	})
 }

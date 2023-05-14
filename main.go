@@ -12,7 +12,7 @@ func main() {
 	defer handler.DB.Close()
 	defer handler.Rdb.Close()
 	r := gin.Default()
-	r.Use(controller.Cors)
+	//r.Use(controller.Cors)
 	r.Use(handler.JwtVerify)
 	
 	usegroup := r.Group("/")
@@ -28,6 +28,7 @@ func main() {
 		contentgroup.GET("/articles",controller.HandleArticles)
 		contentgroup.POST("/articles",controller.HandleUpload)
 		contentgroup.PUT("/articles",controller.HandleUpdate)
+		contentgroup.POST("/upload",controller.HandleImagesUpload)
 	}
 	r.Run() // 监听并在 0.0.0.0:8080 上启动服务
 }

@@ -29,7 +29,7 @@ type Article_content struct{
 }
 
 type Article_cover struct {
-	Type string `json:"type"`
+	Type int `json:"type"`
 	Iamges []string `json:"images"`
 }
 
@@ -45,22 +45,26 @@ type Article_res struct {
 	Message string `json:"message"`
 }
 
-/*
-{
-	"channel_id": 1, 分表
-	ID 文章ID 保证各不相同 生成uuid
-	"content": "<p>4524545254646</p>", 文章内容
-	"title": "assd", 文章标题
-	"type": 1, 图片数目
-	"cover": {
-		"type": 1, 图片数目
-		"images": ["http://geek.itheima.net/uploads/1683908806723.jpg"] 图片
-	}
-	Like_count int `json:"like_count"` 点赞数
-	Read_count int `json:"read_count"` 阅读数
-	Comment_count int `json:"comment_count"` 评论数
-	Status int `json:"status"`					审核状态
-	Pubdate string `json:"pubdate"`  发布时间 "2023-05-13 00:26:51"
-
+type Article_upload struct {
+	Title string `json:"title"`
+	Channel_id int `json:"channel_id"`
+	Article_cover `json:"cover"`
+	Type int `json:"type"`
+	Content string `json:"content"`
 }
+
+
+
+
+/*
+ const params = {
+      channel_id,
+      content,
+      title,
+      type,
+      cover: {
+        type: type,
+        images: fileList.map(item => item.url)
+      }
+    }
 */
