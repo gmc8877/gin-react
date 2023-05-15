@@ -14,6 +14,8 @@ import (
 	"github.com/satori/go.uuid"
 )
 
+var DB_NUM int = 5
+
 func HandleLogin(c *gin.Context) {
 	//登录校验
 	db := handler.DB
@@ -154,83 +156,179 @@ func HandleChannels(c *gin.Context) {
 	c.String(200, res)
 }
 
+//返回文章列表
+
+func HandleArticlesList(c *gin.Context) {
+	var res Response
+
+	page := c.Query("page")
+	per_page := c.Query("per_page")
+	data := Article_data{}
+	data.Page, _ = strconv.Atoi(page)
+	data.Per_page, _ = strconv.Atoi(per_page)
+
+	results := []Article_content{}
+	//数据库查询
+	channel_id, ok_c := c.GetQuery("channel_id")
+	status, ok_s := c.GetQuery("status")
+	begin_pubdate, ok_b := c.GetQuery("begin_pubdate")
+	end_pubdate := c.Query("end_pubdate")
+	var sql_l string
+	db := handler.DB
+	if ok_c {
+		if ok_s {
+			if ok_b {
+				status_v, _ := strconv.Atoi(status)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where status=%v && pubdate>=%s && pubdate<=%s ", channel_id, status_v, begin_pubdate, end_pubdate)
+			} else {
+				status_v, _ := strconv.Atoi(status)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where status=%v ", channel_id, status_v)
+			}
+		} else {
+			if ok_b {
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where pubdate>=%s && pubdate<=%s ", channel_id, begin_pubdate, end_pubdate)
+			} else {
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s", channel_id)
+			}
+		}
+		rows, err := db.Query(sql_l)
+		tools.CheckErr(err)
+		for rows.Next() {
+			//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
+			var result Article_content
+			var image_url string
+			err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &result.Pubdate)
+			tools.CheckErr(err)
+			result.Iamges = []string{image_url}
+			results = append(results, result)
+		}
+	} else {
+		for i := 0; i < DB_NUM; i++ {
+			if ok_s {
+				if ok_b {
+					status_v, _ := strconv.Atoi(status)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where status=%v && pubdate>=%s && pubdate<=%s ", i, status_v, begin_pubdate, end_pubdate)
+				} else {
+					status_v, _ := strconv.Atoi(status)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where status=%v ", i, status_v)
+				}
+			} else {
+				if ok_b {
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where pubdate>=%s && pubdate<=%s ", i, begin_pubdate, end_pubdate)
+				} else {
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v", i)
+				}
+			}
+			rows, err := db.Query(sql_l)
+			tools.CheckErr(err)
+			for rows.Next() {
+				//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
+				var result Article_content
+				var image_url string
+
+				err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &result.Pubdate)
+				tools.CheckErr(err)
+				result.Iamges = []string{image_url}
+				results = append(results, result)
+			}
+		}
+	}
+	data.Total_count = len(results)
+	data.Results = results
+	res.Message = "OK"
+	res.Data = data
+	c.JSON(200, res)
+}
+
 //返回文章内容
 
 func HandleArticles(c *gin.Context) {
-	var res Article_res
-	page := c.Query("page")
-	per_page := c.Query("per_page")
-	res.Data.Page, _ = strconv.Atoi(page)
-	res.Data.Per_page, _ = strconv.Atoi(per_page)
-	res.Data.Total_count = 15
-	results := []Article_content{}
-	result := Article_content{
-			ID:            "8218",
-			Title:         "加载",
-			Comment_count: 0,
-			Pubdate:       "2019-03-11 09:00:00",
-			Read_count:    2,
-			Status:        2,
-			Article_cover: Article_cover{
-				Type:   3,
-				Iamges: []string{"http://geek.itheima.net/resources/images/15.jpg"},
-			},
+	id := c.Param("id")
+	db := handler.DB
+	var article Article_update
+	var err error
+	for i := 0; i < DB_NUM; i++ {
+		sql_l := fmt.Sprintf("select title, content, images_url, pubdate from channel_%v where uuid=?", i)
+		var title, content, images_url, pubdate string
+		err = db.QueryRow(sql_l,id).Scan(&title, &content, &images_url, &pubdate)
+		if err == nil {
+			article = Article_update{
+				Id: id,
+				Title: title,
+				Channel_id: i,
+				Content: content,
+				Article_cover: Article_cover{
+					Type: 0,
+					Iamges: []string{images_url},
+				},
+			}
+			break
 		}
-	for i:=0;i<15;i++{
-		result2 := result
-		result2.Title = result2.Title+strconv.Itoa(i)
-		result2.ID = strconv.Itoa(i)
-		results = append(results, result2)
 	}
-	res.Data.Results = results
+	
+	var res Response
+	res.Data = article
 	res.Message = "OK"
 	c.JSON(200, res)
-
 }
-
 
 //上传文章内容
 
-func HandleUpload(c *gin.Context){
+func HandleUpload(c *gin.Context) {
 	var article Article_upload
 	c.Bind(&article)
 	channel_id := article.Channel_id
 	db := handler.DB
-	sql:= fmt.Sprintf("insert into channel_%v (uuid, status, title, type, content, images_url,like_count,read_count,comment_count, pubdate)  VALUES (?,?, ?, ?, ?,?,?,?, ?, ?)",channel_id)
+	sql := fmt.Sprintf("insert into channel_%v (uuid, status, title, type, content, images_url,like_count,read_count,comment_count, pubdate)  VALUES (?,?, ?, ?, ?,?,?,?, ?, ?)", channel_id)
 	smtp, err := db.Prepare(sql)
 	tools.CheckErr(err)
 	image_url := article.Article_cover.Iamges[0]
-	id:= image_url[:36]
-	_, err = smtp.Exec(id,2,article.Title, article.Type, article.Content,image_url,0,0,0,time.Now().Format("2006-01-02"))
+	id := article.Id
+	fmt.Println(id, len(id))
+	_, err = smtp.Exec(id, 2, article.Title, article.Type, article.Content, image_url, 0, 0, 0, time.Now().Format("2006-01-02"))
 	tools.CheckErr(err)
-	c.JSON(200,gin.H{
-		"message":"OK",
+	c.JSON(200, gin.H{
+		"message": "OK",
 	})
 }
 
 //更新文章内容
 
 func HandleUpdate(c *gin.Context) {
-	
+	id := c.Param("id")
+	var article Article_update_put
+	c.Bind(&article)
+	db := handler.DB
+	sql_l := fmt.Sprintf("update channel_%v set title=?,content=?,type=?,images_url=? where uuid=?", article.Channel_id)
+	smtp, err := db.Prepare(sql_l)
+	tools.CheckErr(err)
+	_, err = smtp.Exec(article.Title, article.Content, article.Type, article.Iamges[0], id)
+	tools.CheckErr(err)
+
+	data := make(map[string]string)
+	data["id"] = id
+	c.JSON(200, gin.H{
+		"data":    data,
+		"message": "OK",
+	})
 }
 
-//上传图片
+// 上传图片
 func HandleImagesUpload(c *gin.Context) {
-	image_id  := c.PostForm("uuid")
-	if len(image_id)==0 {
+	id := c.PostForm("uuid")
+	if len(id) == 0 {
 		u2 := uuid.NewV4()
-  	image_id = u2.String()+".jpg"
+		id = u2.String()
 	}
+	image_id := id + ".jpg"
 	file, _ := c.FormFile("image")
-	
-	
-	dir := "./images/"+image_id
+	dir := "./assets/" + image_id
 	c.SaveUploadedFile(file, dir)
 	data := make(map[string]string)
-	data["url"] = "localhost:8080/"+image_id
-	data["uuid"] = image_id
+	data["url"] = "http://localhost:8080/assets/" + image_id
+	data["uuid"] = id
 	c.JSON(200, gin.H{
-		"data":data,
-		"message":"OK",
+		"data":    data,
+		"message": "OK",
 	})
 }

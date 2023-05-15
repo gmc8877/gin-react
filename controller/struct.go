@@ -40,8 +40,8 @@ type Article_data struct {
 	Total_count int `json:"total_count"`
 }
 
-type Article_res struct {
-	Data Article_data `json:"data"`
+type Response struct {
+	Data interface{} `json:"data"`
 	Message string `json:"message"`
 }
 
@@ -51,9 +51,24 @@ type Article_upload struct {
 	Article_cover `json:"cover"`
 	Type int `json:"type"`
 	Content string `json:"content"`
+	Id string `json:"id"`
 }
 
+type Article_update struct {
+	Title string `json:"title"`
+	Channel_id int `json:"channel_id"`
+	Article_cover `json:"cover"`
+	Content string `json:"content"`
+	Id string `json:"id"`
+	Pubdate string `json:"pubdate"`
+}
 
+type Article_update_put struct {
+	Title string `json:"title"`
+	Channel_id int `json:"channel_id"`
+	Article_cover `json:"cover"`
+	Content string `json:"content"`
+}
 
 
 /*
