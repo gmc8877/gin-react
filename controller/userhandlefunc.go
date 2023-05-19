@@ -5,6 +5,7 @@ import (
 	"DEMO01/tools"
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strconv"
@@ -16,6 +17,15 @@ import (
 )
 
 var DB_NUM int = 5
+
+//返回图片
+
+func Getimages(c *gin.Context) {
+	imageName := "./assets/"+c.Param("path")
+	file, err:= ioutil.ReadFile(imageName)
+	tools.CheckErr(err)
+	c.Writer.WriteString(string(file))
+}
 
 func HandleLogin(c *gin.Context) {
 	//登录校验

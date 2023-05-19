@@ -12,9 +12,9 @@ func main() {
 	defer handler.DB.Close()
 	defer handler.Rdb.Close()
 	r := gin.Default()
-	//r.Use(controller.Cors)
+	r.Use(controller.Cors)
 	
-	r.Static("/assets", "./assets")
+	r.GET("/assets/:path",  controller.Getimages)
 	usegroup := r.Group("/")
 	{
 		usegroup.Use(handler.JwtVerify)
