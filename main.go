@@ -32,6 +32,11 @@ func main() {
 		contentgroup.POST("/articles",controller.HandleUpload)
 		contentgroup.PUT("/articles/:id",controller.HandleUpdate)
 		contentgroup.POST("/upload",controller.HandleImagesUpload)
+		contentgroup.DELETE("/articles/:id",controller.HandleDelete)
+	}
+	showgroup := r.Group("/home")
+	{
+		showgroup.GET("/articles", controller.HandleShows)
 	}
 	r.Run() // 监听并在 0.0.0.0:8080 上启动服务
 }

@@ -28,6 +28,19 @@ type Article_content struct{
 	Article_cover `json:"cover"`
 }
 
+
+type Article_content_show struct{
+	ID string `json:"id"`
+	Title string `json:"title"`
+	Comment_count int `json:"comment_count"`
+	Status int `json:"status"`
+	Pubdate string `json:"pubdate"`
+	Like_count int `json:"like_count"`
+	Read_count int `json:"read_count"`
+	Image string `json:"image"`
+	Name string `json:"name"`
+}
+
 type Article_cover struct {
 	Type int `json:"type"`
 	Iamges []string `json:"images"`
@@ -37,6 +50,13 @@ type Article_data struct {
 	Page int `json:"page"`
 	Per_page int `json:"per_page"`
 	Results []Article_content `json:"results"`
+	Total_count int `json:"total_count"`
+}
+
+type Article_data_show struct {
+	Page int `json:"page"`
+	Per_page int `json:"per_page"`
+	Results []Article_content_show `json:"results"`
 	Total_count int `json:"total_count"`
 }
 
@@ -70,16 +90,3 @@ type Article_update_put struct {
 	Content string `json:"content"`
 }
 
-
-/*
- const params = {
-      channel_id,
-      content,
-      title,
-      type,
-      cover: {
-        type: type,
-        images: fileList.map(item => item.url)
-      }
-    }
-*/

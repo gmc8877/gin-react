@@ -1,17 +1,20 @@
 package main
 
 import (
-
+	"DEMO01/handler"
 	"fmt"
-
-	"github.com/satori/go.uuid"
+	
 )
 
 func main() {
-	
-	
-    
-  u2 := uuid.NewV4()
-  res := u2.String()
-  fmt.Println(res)
+  handler.InitDB()
+  db := handler.DB
+  defer db.Close()
+  var pubdate string
+  err := db.QueryRow("select pubdate from channel_1 where title=1").Scan(&pubdate)
+  if err != nil {
+    fmt.Println("err1", err)
+  }
+  fmt.Println(pubdate[:10])
+ 
 }

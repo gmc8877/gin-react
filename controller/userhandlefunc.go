@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -156,7 +157,7 @@ func HandleChannels(c *gin.Context) {
 	c.String(200, res)
 }
 
-//返回文章列表
+//返回修改面板文章列表
 
 func HandleArticlesList(c *gin.Context) {
 	var res Response
@@ -179,14 +180,14 @@ func HandleArticlesList(c *gin.Context) {
 		if ok_s {
 			if ok_b {
 				status_v, _ := strconv.Atoi(status)
-				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where status=%v && pubdate>=%s && pubdate<=%s ", channel_id, status_v, begin_pubdate, end_pubdate)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where status=%v && pubdate>='%s' && pubdate<='%s' ", channel_id, status_v, begin_pubdate, end_pubdate)
 			} else {
 				status_v, _ := strconv.Atoi(status)
 				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where status=%v ", channel_id, status_v)
 			}
 		} else {
 			if ok_b {
-				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where pubdate>=%s && pubdate<=%s ", channel_id, begin_pubdate, end_pubdate)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where pubdate>='%s' && pubdate<='%s' ", channel_id, begin_pubdate, end_pubdate)
 			} else {
 				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s", channel_id)
 			}
@@ -196,10 +197,11 @@ func HandleArticlesList(c *gin.Context) {
 		for rows.Next() {
 			//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
 			var result Article_content
-			var image_url string
-			err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &result.Pubdate)
+			var image_url, pubdate string
+			err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &pubdate)
 			tools.CheckErr(err)
 			result.Iamges = []string{image_url}
+			result.Pubdate = pubdate[:10]
 			results = append(results, result)
 		}
 	} else {
@@ -207,14 +209,14 @@ func HandleArticlesList(c *gin.Context) {
 			if ok_s {
 				if ok_b {
 					status_v, _ := strconv.Atoi(status)
-					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where status=%v && pubdate>=%s && pubdate<=%s ", i, status_v, begin_pubdate, end_pubdate)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where status=%v && pubdate>='%s' && pubdate<='%s' ", i, status_v, begin_pubdate, end_pubdate)
 				} else {
 					status_v, _ := strconv.Atoi(status)
 					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where status=%v ", i, status_v)
 				}
 			} else {
 				if ok_b {
-					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where pubdate>=%s && pubdate<=%s ", i, begin_pubdate, end_pubdate)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where pubdate>='%s' && pubdate<='%s' ", i, begin_pubdate, end_pubdate)
 				} else {
 					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v", i)
 				}
@@ -224,11 +226,12 @@ func HandleArticlesList(c *gin.Context) {
 			for rows.Next() {
 				//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
 				var result Article_content
-				var image_url string
+				var image_url, pubdate string
 
-				err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &result.Pubdate)
+				err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &pubdate)
 				tools.CheckErr(err)
 				result.Iamges = []string{image_url}
+				result.Pubdate = pubdate[:10]
 				results = append(results, result)
 			}
 		}
@@ -240,32 +243,29 @@ func HandleArticlesList(c *gin.Context) {
 	c.JSON(200, res)
 }
 
-//返回文章内容
+//返回修改面板文章内容
 
 func HandleArticles(c *gin.Context) {
 	id := c.Param("id")
 	db := handler.DB
 	var article Article_update
-	var err error
-	for i := 0; i < DB_NUM; i++ {
-		sql_l := fmt.Sprintf("select title, content, images_url, pubdate from channel_%v where uuid=?", i)
-		var title, content, images_url, pubdate string
-		err = db.QueryRow(sql_l,id).Scan(&title, &content, &images_url, &pubdate)
-		if err == nil {
-			article = Article_update{
-				Id: id,
-				Title: title,
-				Channel_id: i,
-				Content: content,
-				Article_cover: Article_cover{
-					Type: 0,
-					Iamges: []string{images_url},
-				},
-			}
-			break
-		}
+	channel_id, err :=strconv.Atoi(id[36:]) 
+	tools.CheckErr(err)
+	sql_l := fmt.Sprintf("select title, content, images_url from channel_%v where uuid=?", channel_id)
+	var title, content, images_url string
+	err = db.QueryRow(sql_l, id).Scan(&title, &content, &images_url)
+	tools.CheckErr(err)
+	article = Article_update{
+		Id:         id,
+		Title:      title,
+		Channel_id: channel_id,
+		Content:    content,
+		Article_cover: Article_cover{
+			Type:   0,
+			Iamges: []string{images_url},
+		},
 	}
-	
+
 	var res Response
 	res.Data = article
 	res.Message = "OK"
@@ -278,14 +278,15 @@ func HandleUpload(c *gin.Context) {
 	var article Article_upload
 	c.Bind(&article)
 	channel_id := article.Channel_id
+	user_info, _ := c.Get("user")
+	user_name := user_info.(*handler.UserClaims).Name
 	db := handler.DB
-	sql := fmt.Sprintf("insert into channel_%v (uuid, status, title, type, content, images_url,like_count,read_count,comment_count, pubdate)  VALUES (?,?, ?, ?, ?,?,?,?, ?, ?)", channel_id)
+	sql := fmt.Sprintf("insert into channel_%v (uuid, status, title, type, content, images_url,like_count,read_count,comment_count, pubdate, user_name)  VALUES (?,?, ?, ?, ?,?,?,?, ?, ?,?)", channel_id)
 	smtp, err := db.Prepare(sql)
 	tools.CheckErr(err)
 	image_url := article.Article_cover.Iamges[0]
-	id := article.Id
-	fmt.Println(id, len(id))
-	_, err = smtp.Exec(id, 2, article.Title, article.Type, article.Content, image_url, 0, 0, 0, time.Now().Format("2006-01-02"))
+	id := article.Id + strconv.Itoa(channel_id)
+	_, err = smtp.Exec(id, 2, article.Title, article.Type, article.Content, image_url, 0, 0, 0, time.Now().Format("2006-01-02"), user_name)
 	tools.CheckErr(err)
 	c.JSON(200, gin.H{
 		"message": "OK",
@@ -299,10 +300,10 @@ func HandleUpdate(c *gin.Context) {
 	var article Article_update_put
 	c.Bind(&article)
 	db := handler.DB
-	sql_l := fmt.Sprintf("update channel_%v set title=?,content=?,type=?,images_url=? where uuid=?", article.Channel_id)
+	sql_l := fmt.Sprintf("update channel_%v set title=?,content=?,type=?,images_url=? , pubdate=? where uuid=?", article.Channel_id)
 	smtp, err := db.Prepare(sql_l)
 	tools.CheckErr(err)
-	_, err = smtp.Exec(article.Title, article.Content, article.Type, article.Iamges[0], id)
+	_, err = smtp.Exec(article.Title, article.Content, article.Type, article.Iamges[0],  time.Now().Format("2006-01-02"),id)
 	tools.CheckErr(err)
 
 	data := make(map[string]string)
@@ -331,4 +332,112 @@ func HandleImagesUpload(c *gin.Context) {
 		"data":    data,
 		"message": "OK",
 	})
+}
+
+//删除文章
+
+func HandleDelete(c *gin.Context) {
+	id := c.Param("id")
+	var article Article_update_put
+	c.Bind(&article)
+	db := handler.DB
+	channel_id := id[36:]
+	sql_l := fmt.Sprintf("delete from channel_%s where uuid=?", channel_id)
+	smtp, err := db.Prepare(sql_l)
+	tools.CheckErr(err)
+	_, err = smtp.Exec(id)
+	tools.CheckErr(err)
+	os.Remove("./assets/" + id[:36] + ".jpg")
+	data := make(map[string]string)
+	data["id"] = id
+	c.JSON(200, gin.H{
+		"data":    data,
+		"message": "OK",
+	})
+}
+
+
+//返回展示页面文章列表
+func HandleShows(c *gin.Context) {
+	var res Response
+
+	page := c.Query("page")
+	per_page := c.Query("per_page")
+	data := Article_data_show{}
+	data.Page, _ = strconv.Atoi(page)
+	data.Per_page, _ = strconv.Atoi(per_page)
+
+	results := []Article_content_show{}
+	//数据库查询
+	channel_id, ok_c := c.GetQuery("channel_id")
+	status, ok_s := c.GetQuery("status")
+	begin_pubdate, ok_b := c.GetQuery("begin_pubdate")
+	end_pubdate := c.Query("end_pubdate")
+	var sql_l string
+	db := handler.DB
+	if ok_c {
+		if ok_s {
+			if ok_b {
+				status_v, _ := strconv.Atoi(status)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status,  Images_url, pubdate , user_name from channel_%s where status=%v && pubdate>='%s' && pubdate<='%s' ", channel_id, status_v, begin_pubdate, end_pubdate)
+			} else {
+				status_v, _ := strconv.Atoi(status)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Images_url, pubdate  , user_name from channel_%s where status=%v ", channel_id, status_v)
+			}
+		} else {
+			if ok_b {
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status,Images_url, pubdate  , user_name from channel_%s where pubdate>='%s' && pubdate<='%s' ", channel_id, begin_pubdate, end_pubdate)
+			} else {
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Images_url, pubdate  , user_name from channel_%s", channel_id)
+			}
+		}
+		rows, err := db.Query(sql_l)
+		tools.CheckErr(err)
+		for rows.Next() {
+			//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
+			var result Article_content_show
+			var image_url, pubdate string
+			err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status,  &image_url, &pubdate, &result.Name)
+			tools.CheckErr(err)
+			result.Image = image_url
+			result.Pubdate = pubdate
+			results = append(results, result)
+		}
+	} else {
+		for i := 0; i < DB_NUM; i++ {
+			if ok_s {
+				if ok_b {
+					status_v, _ := strconv.Atoi(status)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status,  Images_url, pubdate , user_name  from channel_%v where status=%v && pubdate>='%s' && pubdate<='%s'", i, status_v, begin_pubdate, end_pubdate)
+				} else {
+					status_v, _ := strconv.Atoi(status)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Images_url, pubdate  , user_name from channel_%v where status=%v ", i, status_v)
+				}
+			} else {
+				if ok_b {
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status,  Images_url, pubdate  , user_name from channel_%v where pubdate>='%s' && pubdate<='%s' ", i, begin_pubdate, end_pubdate)
+				} else {
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Images_url, pubdate  , user_name from channel_%v", i)
+				}
+			}
+			rows, err := db.Query(sql_l)
+			tools.CheckErr(err)
+			for rows.Next() {
+				//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
+				var result Article_content_show
+				var image_url, pubdate string
+
+				err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &image_url, &pubdate, &result.Name)
+				tools.CheckErr(err)
+				result.Image = image_url
+				result.Pubdate = pubdate
+				results = append(results, result)
+			}
+		}
+	}
+	data.Total_count = len(results)
+	data.Results = results
+	res.Message = "OK"
+	res.Data = data
+	c.JSON(200, res)
 }
