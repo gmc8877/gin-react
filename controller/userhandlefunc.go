@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net/http"
+
 	"os"
 	"strconv"
 	"time"
@@ -21,12 +21,13 @@ var DB_NUM int = 5
 //返回图片
 
 func Getimages(c *gin.Context) {
-	imageName := "./assets/"+c.Param("path")
-	file, err:= ioutil.ReadFile(imageName)
+	imageName := "./assets/" + c.Param("path")
+	file, err := ioutil.ReadFile(imageName)
 	tools.CheckErr(err)
 	c.Writer.WriteString(string(file))
 }
 
+//用户登录
 func HandleLogin(c *gin.Context) {
 	//登录校验
 	db := handler.DB
@@ -70,23 +71,22 @@ func HandleLogin(c *gin.Context) {
 }
 
 // 解决跨域问题
+
+
 func Cors(context *gin.Context) {
 	method := context.Request.Method
 	// 必须，接受指定域的请求，可以使用*不加以限制，但不安全
 	context.Header("Access-Control-Allow-Origin", "*")
-	// context.Header("Access-Control-Allow-Origin", context.GetHeader("Origin"))
-	fmt.Println(context.GetHeader("Origin"))
+
 	// 必须，设置服务器支持的所有跨域请求的方法
 	context.Header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS")
 	// 服务器支持的所有头信息字段，不限于浏览器在"预检"中请求的字段
 	context.Header("Access-Control-Allow-Headers", "Content-Type, Content-Length, Token, X-Requested-With")
 	// 可选，设置XMLHttpRequest的响应对象能拿到的额外字段
-	context.Header("Access-Control-Expose-Headers", "Access-Control-Allow-Headers, Token, X-Requested-With")
-	// 可选，是否允许后续请求携带认证信息Cookir，该值只能是true，不需要则不设置
-	context.Header("Access-Control-Allow-Credentials", "true")
+	// context.Header("Access-Control-Expose-Headers", "Access-Control-Allow-Headers, Token, X-Requested-With")
 	// 放行所有OPTIONS方法
 	if method == "OPTIONS" {
-		context.AbortWithStatus(http.StatusNoContent)
+		context.AbortWithStatus(200)
 		return
 	}
 	context.Next()
@@ -256,10 +256,11 @@ func HandleArticlesList(c *gin.Context) {
 //返回修改面板文章内容
 
 func HandleArticles(c *gin.Context) {
+
 	id := c.Param("id")
 	db := handler.DB
 	var article Article_update
-	channel_id, err :=strconv.Atoi(id[36:]) 
+	channel_id, err := strconv.Atoi(id[36:])
 	tools.CheckErr(err)
 	sql_l := fmt.Sprintf("select title, content, images_url from channel_%v where uuid=?", channel_id)
 	var title, content, images_url string
@@ -275,7 +276,6 @@ func HandleArticles(c *gin.Context) {
 			Iamges: []string{images_url},
 		},
 	}
-
 	var res Response
 	res.Data = article
 	res.Message = "OK"
@@ -303,17 +303,20 @@ func HandleUpload(c *gin.Context) {
 	})
 }
 
+
 //更新文章内容
 
 func HandleUpdate(c *gin.Context) {
 	id := c.Param("id")
 	var article Article_update_put
 	c.Bind(&article)
+	user_info, _ := c.Get("user")
+	user_name := user_info.(*handler.UserClaims).Name
 	db := handler.DB
-	sql_l := fmt.Sprintf("update channel_%v set title=?,content=?,type=?,images_url=? , pubdate=? where uuid=?", article.Channel_id)
+	sql_l := fmt.Sprintf("update channel_%v set title=?,content=?,type=?,images_url=? , pubdate=? where uuid=? && user_name=?", article.Channel_id)
 	smtp, err := db.Prepare(sql_l)
 	tools.CheckErr(err)
-	_, err = smtp.Exec(article.Title, article.Content, article.Type, article.Iamges[0],  time.Now().Format("2006-01-02"),id)
+	_, err = smtp.Exec(article.Title, article.Content, article.Type, article.Iamges[0], time.Now().Format("2006-01-02"), id, user_name)
 	tools.CheckErr(err)
 
 	data := make(map[string]string)
@@ -323,6 +326,8 @@ func HandleUpdate(c *gin.Context) {
 		"message": "OK",
 	})
 }
+
+
 
 // 上传图片
 func HandleImagesUpload(c *gin.Context) {
@@ -344,7 +349,7 @@ func HandleImagesUpload(c *gin.Context) {
 	})
 }
 
-//删除文章
+//管理员删除文章
 
 func HandleDelete(c *gin.Context) {
 	id := c.Param("id")
@@ -365,9 +370,30 @@ func HandleDelete(c *gin.Context) {
 		"message": "OK",
 	})
 }
+ //用户删除文章
+func HandleUsrDelete(c *gin.Context) {
+	id := c.Param("id")
+	user_info, _ := c.Get("user")
+	user_name := user_info.(*handler.UserClaims).Name
+	var article Article_update_put
+	c.Bind(&article)
+	db := handler.DB
+	channel_id := id[36:]
+	sql_l := fmt.Sprintf("delete from channel_%s where uuid=? && user_name=?", channel_id)
+	smtp, err := db.Prepare(sql_l)
+	tools.CheckErr(err)
+	_, err = smtp.Exec(id, user_name)
+	tools.CheckErr(err)
+	os.Remove("./assets/" + id[:36] + ".jpg")
+	data := make(map[string]string)
+	data["id"] = id
+	c.JSON(200, gin.H{
+		"data":    data,
+		"message": "OK",
+	})
+}
 
-
-//返回展示页面文章列表
+// 返回展示页面文章列表
 func HandleShows(c *gin.Context) {
 	var res Response
 
@@ -407,7 +433,7 @@ func HandleShows(c *gin.Context) {
 			//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
 			var result Article_content_show
 			var image_url, pubdate string
-			err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status,  &image_url, &pubdate, &result.Name)
+			err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &image_url, &pubdate, &result.Name)
 			tools.CheckErr(err)
 			result.Image = image_url
 			result.Pubdate = pubdate
@@ -441,6 +467,138 @@ func HandleShows(c *gin.Context) {
 				tools.CheckErr(err)
 				result.Image = image_url
 				result.Pubdate = pubdate
+				results = append(results, result)
+			}
+		}
+	}
+	data.Total_count = len(results)
+	data.Results = results
+	res.Message = "OK"
+	res.Data = data
+	c.JSON(200, res)
+}
+
+//处理管理员账户登录
+
+func HandleRootLogin(c *gin.Context) {
+	//登录校验
+	db := handler.DB
+	var user User_info
+	err := c.ShouldBindJSON(&user)
+	tools.CheckErr(err)
+	//密码进行hash
+	code_hash := tools.CodeHash(user.Code)
+	var password, user_id string
+	//数据库查询用户名和密码
+	err = db.QueryRow("select password, user_id from root_info where user_name=?", user.Mobile).Scan(&password, &user_id)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"data":    "",
+			"message": "用户名错误",
+		})
+		return
+	}
+	//校验正确返回token
+	if password == code_hash {
+
+		token := handler.GenerateToken(&handler.UserClaims{
+			ID:             user_id,
+			Name:           user.Mobile,
+			Password:       password,
+			StandardClaims: jwt.StandardClaims{},
+		})
+
+		data := make(map[string]string)
+		data["token"] = token
+		c.JSON(200, gin.H{
+			"data":    data,
+			"message": "OK",
+		})
+	} else {
+		c.JSON(400, gin.H{
+			"data":    "",
+			"message": "密码错误",
+		})
+	}
+}
+
+//返回用户文章列表
+
+func HandleUsrArticlesList(c *gin.Context) {
+	var res Response
+	page := c.Query("page")
+	per_page := c.Query("per_page")
+	data := Article_data{}
+	data.Page, _ = strconv.Atoi(page)
+	data.Per_page, _ = strconv.Atoi(per_page)
+	results := []Article_content{}
+	//用户名
+	user_info, _ := c.Get("user")
+	claims := user_info.(*handler.UserClaims)
+	usr_name := claims.Name
+	//数据库查询
+	channel_id, ok_c := c.GetQuery("channel_id")
+	status, ok_s := c.GetQuery("status")
+	begin_pubdate, ok_b := c.GetQuery("begin_pubdate")
+	end_pubdate := c.Query("end_pubdate")
+	var sql_l string
+	db := handler.DB
+	if ok_c {
+		if ok_s {
+			if ok_b {
+				status_v, _ := strconv.Atoi(status)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where status=%v && pubdate>='%s' && pubdate<='%s' && user_name=%s", channel_id, status_v, begin_pubdate, end_pubdate, usr_name)
+			} else {
+				status_v, _ := strconv.Atoi(status)
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where status=%v && user_name=%s", channel_id, status_v, usr_name)
+			}
+		} else {
+			if ok_b {
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s where pubdate>='%s' && pubdate<='%s' && user_name=%s ", channel_id, begin_pubdate, end_pubdate, usr_name)
+			} else {
+				sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%s && user_name=%s", channel_id, usr_name)
+			}
+		}
+		rows, err := db.Query(sql_l)
+		tools.CheckErr(err)
+		for rows.Next() {
+			//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
+			var result Article_content
+			var image_url, pubdate string
+			err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &pubdate)
+			tools.CheckErr(err)
+			result.Iamges = []string{image_url}
+			result.Pubdate = pubdate[:10]
+			results = append(results, result)
+		}
+	} else {
+		for i := 0; i < DB_NUM; i++ {
+			if ok_s {
+				if ok_b {
+					status_v, _ := strconv.Atoi(status)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where status=%v && pubdate>='%s' && pubdate<='%s' && user_name=%s", i, status_v, begin_pubdate, end_pubdate, usr_name)
+				} else {
+					status_v, _ := strconv.Atoi(status)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where status=%v && user_name=%s", i, status_v, usr_name)
+				}
+			} else {
+				if ok_b {
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where pubdate>='%s' && pubdate<='%s' && user_name=%s", i, begin_pubdate, end_pubdate, usr_name)
+				} else {
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v", i)
+				}
+			}
+			rows, err := db.Query(sql_l)
+			tools.CheckErr(err)
+			for rows.Next() {
+				//uuid, title, Comment_count, Read_count, Like_count, Status, Type, Iamges_url, pubdate
+				var result Article_content
+				var image_url, pubdate string
+
+				err = rows.Scan(&result.ID, &result.Title, &result.Comment_count, &result.Read_count, &result.Like_count, &result.Status, &result.Type, &image_url, &pubdate)
+				tools.CheckErr(err)
+				result.Iamges = []string{image_url}
+				result.Pubdate = pubdate[:10]
 				results = append(results, result)
 			}
 		}

@@ -21,7 +21,7 @@ var (
 	//自定义的token秘钥
 	secret = []byte("464fsd895sfdf48569")
 	//该路由下不校验token
-	noVerify = []string{"/login","/register/captcha","/register"}
+	noVerify = []string{"/login","/register/captcha","/register", "/root/login"}
 	//token有效时间（纳秒）
 	effectTime = 24 * time.Hour
 )
@@ -52,12 +52,63 @@ func JwtVerify(c *gin.Context) {
     }
   }
 	token := c.GetHeader("token")
+	
 	if token == "" {
+		c.JSON(401, gin.H{
+			"message":"token not exist",
+		})
 		panic("token not exist !")
 	}
 	//验证token，并存储在请求中
-	c.Set("user", parseToken(token))
+	claims := parseToken(token)
+	var password, user_name string
+	//数据库查询用户名和密码
+	err := DB.QueryRow("select password,user_name from user_info where user_id=?",claims.ID).Scan(&password, &user_name)
+	tools.CheckErr(err)
+	if claims.Name==user_name&&claims.Password==password {
+		c.Set("user", claims)
+	}else {
+		c.JSON(401, gin.H{
+			"message":"token not right",
+		})
+		panic("token not right !")
+	}
+	
 }
+
+func RootVerify(c *gin.Context) {
+	//过滤是否验证token
+  for _,url:= range noVerify {
+    if url==c.Request.RequestURI {
+      return
+    }
+  }
+	token := c.GetHeader("roottoken")
+	
+	if token == "" {
+		c.JSON(401, gin.H{
+			"message":"token not exist",
+		})
+		panic("token not exist !")
+	}
+	//验证token，并存储在请求中
+	claims := parseToken(token)
+	var password, user_name string
+	//数据库查询用户名和密码
+	err := DB.QueryRow("select password,user_name from root_info where user_id=?",claims.ID).Scan(&password, &user_name)
+	tools.CheckErr(err)
+	if claims.Name==user_name&&claims.Password==password {
+		c.Set("user", claims)
+	}else {
+		c.JSON(401, gin.H{
+			"message":"token not right",
+		})
+		panic("token not right !")
+	}
+	
+}
+
+
 
 // 解析Token
 func parseToken(tokenString string) *UserClaims {
