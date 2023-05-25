@@ -47,6 +47,7 @@ func main() {
 		rootgroup.PUT("/articles/:id",controller.HandleUpdate)
 		rootgroup.POST("/upload",controller.HandleImagesUpload)
 		rootgroup.DELETE("/articles/:id",controller.HandleDelete)
+		rootgroup.GET("/rootinfo", controller.HandleRootinfo)
 	}
 
 	showgroup := r.Group("/home")

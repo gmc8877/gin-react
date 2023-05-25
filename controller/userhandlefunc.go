@@ -143,17 +143,31 @@ func HandleRegisterCaptcha(c *gin.Context) {
 	rdb := handler.Rdb
 	ctx := context.Background()
 	num_key := registercaptcha.Mobile + registercaptcha.Email
-	val, _ := rdb.Get(ctx, num_key).Result()
+	val, err := rdb.Get(ctx, num_key).Result()
 	if val != "" {
+		if err != nil {
+			tools.CheckErr(err)
+		}
 		return
 	}
 	num, err := tools.SendEmailValidate([]string{registercaptcha.Email})
 	tools.CheckErr(err)
-	rdb.SetNX(ctx, num_key, num, 5*time.Minute)
+	err = rdb.SetNX(ctx, num_key, num, 5*time.Minute).Err()
+	tools.CheckErr(err)
 }
 
 // 返回用户个人信息
 func HandleUserinfo(c *gin.Context) {
+	user_info, _ := c.Get("user")
+	claims := user_info.(*handler.UserClaims)
+	c.JSON(200, gin.H{
+		"name": claims.Name,
+	})
+}
+
+//返回root用户个人信息
+
+func HandleRootinfo(c *gin.Context) {
 	user_info, _ := c.Get("user")
 	claims := user_info.(*handler.UserClaims)
 	c.JSON(200, gin.H{
@@ -341,7 +355,7 @@ func HandleImagesUpload(c *gin.Context) {
 	dir := "./assets/" + image_id
 	c.SaveUploadedFile(file, dir)
 	data := make(map[string]string)
-	data["url"] = "http://localhost:8080/assets/" + image_id
+	data["url"] = "http://101.35.210.115/api/assets/" + image_id
 	data["uuid"] = id
 	c.JSON(200, gin.H{
 		"data":    data,
@@ -585,7 +599,7 @@ func HandleUsrArticlesList(c *gin.Context) {
 				if ok_b {
 					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where pubdate>='%s' && pubdate<='%s' && user_name=%s", i, begin_pubdate, end_pubdate, usr_name)
 				} else {
-					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v", i)
+					sql_l = fmt.Sprintf("select uuid, title, Comment_count, Read_count, Like_count, Status, Type, Images_url, pubdate from channel_%v where user_name=%s", i, usr_name)
 				}
 			}
 			rows, err := db.Query(sql_l)

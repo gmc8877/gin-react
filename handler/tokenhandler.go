@@ -83,7 +83,7 @@ func RootVerify(c *gin.Context) {
       return
     }
   }
-	token := c.GetHeader("roottoken")
+	token := c.GetHeader("token")
 	
 	if token == "" {
 		c.JSON(401, gin.H{
