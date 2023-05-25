@@ -1,0 +1,41 @@
+.ant-layout {
+  height: 100%;
+}
+
+.header {
+  padding: 0;
+  background-color:whitesmoke;
+}
+
+.logo {
+  margin: 20px 10px 30px 20px;
+  width: 100px;
+  height: 40px;
+  background: url('~@/assets/logo.jpg') no-repeat center / 100px 40px;
+}
+
+.layout-content {
+  overflow-y: auto;
+}
+
+.user-info {
+  position: absolute;
+  right: 0;
+  top: 0;
+  padding-right: 20px;
+  color: black;
+  
+  .user-name {
+    margin-right: 20px;
+  }
+  
+  .user-logout {
+    display: inline-block;
+    cursor: pointer;
+  }
+}
+
+
+.sidemenu {
+  background-color: whitesmoke;
+}
